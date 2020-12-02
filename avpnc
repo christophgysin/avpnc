@@ -4,17 +4,16 @@ from socketserver import TCPServer
 from urllib.parse import unquote
 import argparse
 import json
-import os
 import re
 import shlex
 import subprocess
-import sys
 import tempfile
 import webbrowser
 
 parser = argparse.ArgumentParser()
 parser.add_argument('profile', type=argparse.FileType('r'), metavar='profile.ovpn')
 args = parser.parse_args()
+
 
 def get_url():
     regex = re.compile('^#AviatrixController (.*)$')
@@ -23,6 +22,7 @@ def get_url():
         if match:
             return match.group(1)
     raise RuntimeError("Controller URL not found in profile")
+
 
 def openvpn(username, password):
     cmd = 'sudo openvpn --config {config} --auth-user-pass {userpass}'
@@ -33,6 +33,7 @@ def openvpn(username, password):
         cmd = cmd.format(userpass=passfile.name, config=args.profile.name)
         proc = subprocess.Popen(shlex.split(cmd))
         proc.communicate()
+
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
@@ -45,6 +46,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(b'SuccessAviatrix')
         credentials = json.loads(unquote(self.path[1:]))
         openvpn(credentials['Email'], credentials['Token'])
+
 
 TCPServer.allow_reuse_address = True
 with TCPServer(('localhost', 15395), Handler) as httpd:
