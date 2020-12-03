@@ -25,14 +25,11 @@ def get_url():
 
 
 def openvpn(username, password):
-    cmd = 'sudo openvpn --config {config} --auth-user-pass {userpass}'
-    with tempfile.NamedTemporaryFile() as passfile:
-        passfile.write((username + '\n').encode())
-        passfile.write((password + '\n').encode())
-        passfile.flush()
-        cmd = cmd.format(userpass=passfile.name, config=args.profile.name)
-        proc = subprocess.Popen(shlex.split(cmd))
-        proc.communicate()
+    with tempfile.NamedTemporaryFile(mode='w+', buffering=1) as passfile:
+        passfile.write(f'{username}\n')
+        passfile.write(f'{password}\n')
+        cmd = f'sudo openvpn --config {args.profile.name} --auth-user-pass {passfile.name}'
+        subprocess.run(shlex.split(cmd))
 
 
 class Handler(BaseHTTPRequestHandler):
