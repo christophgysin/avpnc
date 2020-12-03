@@ -10,9 +10,10 @@ import subprocess
 import tempfile
 import webbrowser
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(usage='usage: avpnc [options...] profile.ovpn [openvpn options...]')
 parser.add_argument('-d', '--dump', action='store_true', help="Only dump credentials, don't start openvpn")
 parser.add_argument('profile', type=argparse.FileType('r'), metavar='profile.ovpn')
+parser.add_argument('ovpnargs', metavar='[extra openvpn arguments...]', nargs=argparse.REMAINDER)
 args = parser.parse_args()
 
 
@@ -30,7 +31,9 @@ def openvpn(username, password):
         passfile.write(f'{username}\n')
         passfile.write(f'{password}\n')
         cmd = f'sudo openvpn --config {args.profile.name} --auth-user-pass {passfile.name}'
-        subprocess.run(shlex.split(cmd))
+        argv = shlex.split(cmd)
+        argv.extend(args.ovpnargs)
+        subprocess.run(argv)
 
 
 class Handler(BaseHTTPRequestHandler):
