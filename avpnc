@@ -41,11 +41,13 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
         self.wfile.write(b'SuccessAviatrix')
+        global credentials
         credentials = json.loads(unquote(self.path[1:]))
-        openvpn(credentials['Email'], credentials['Token'])
 
 
 TCPServer.allow_reuse_address = True
 with TCPServer(('localhost', 15395), Handler) as httpd:
     webbrowser.open(get_url())
     httpd.handle_request()
+
+openvpn(credentials['Email'], credentials['Token'])
