@@ -11,6 +11,7 @@ import tempfile
 import webbrowser
 
 parser = argparse.ArgumentParser()
+parser.add_argument('-d', '--dump', action='store_true', help="Only dump credentials, don't start openvpn")
 parser.add_argument('profile', type=argparse.FileType('r'), metavar='profile.ovpn')
 args = parser.parse_args()
 
@@ -50,4 +51,7 @@ with TCPServer(('localhost', 15395), Handler) as httpd:
     webbrowser.open(get_url())
     httpd.handle_request()
 
-openvpn(credentials['Email'], credentials['Token'])
+if args.dump:
+    print(json.dumps(credentials))
+else:
+    openvpn(credentials['Email'], credentials['Token'])
