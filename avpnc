@@ -6,6 +6,7 @@ import argparse
 import json
 import re
 import shlex
+import signal
 import subprocess
 import tempfile
 import webbrowser
@@ -33,7 +34,10 @@ def openvpn(username, password):
         cmd = f'sudo openvpn --config {args.profile.name} --auth-user-pass {passfile.name}'
         argv = shlex.split(cmd)
         argv.extend(args.ovpnargs)
-        subprocess.run(argv)
+        proc = subprocess.Popen(argv)
+        for signum in [signal.SIGINT, signal.SIGTERM]:
+            signal.signal(signum, lambda: proc.send_signal(signum))
+        proc.communicate()
 
 
 class Handler(BaseHTTPRequestHandler):
