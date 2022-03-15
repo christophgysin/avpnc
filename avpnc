@@ -11,15 +11,32 @@ import subprocess
 import tempfile
 import webbrowser
 
-parser = argparse.ArgumentParser(usage='usage: avpnc [options...] profile.ovpn [openvpn options...]')
-parser.add_argument('-d', '--dump', action='store_true', help="Only dump credentials, don't start openvpn")
-parser.add_argument('profile', type=argparse.FileType('r'), metavar='profile.ovpn')
-parser.add_argument('ovpnargs', metavar='[extra openvpn arguments...]', nargs=argparse.REMAINDER)
+parser = argparse.ArgumentParser(
+    usage="usage: avpnc [options...] profile.ovpn [openvpn options...]"
+)
+parser.add_argument(
+    "-d",
+    "--dump",
+    action="store_true",
+    help="Only dump credentials, don't start openvpn",
+)
+parser.add_argument("profile", type=argparse.FileType("r"), metavar="profile.ovpn")
+parser.add_argument(
+    "ovpnargs", metavar="[extra openvpn arguments...]", nargs=argparse.REMAINDER
+)
 args = parser.parse_args()
 
 
+def X_is_running():
+    from subprocess import Popen, PIPE
+
+    p = Popen(["xset", "-q"], stdout=PIPE, stderr=PIPE)
+    p.communicate()
+    return p.returncode == 0
+
+
 def get_url():
-    regex = re.compile('^#AviatrixController (.*)$')
+    regex = re.compile("^#AviatrixController (.*)$")
     for line in args.profile.readlines():
         match = regex.match(line)
         if match:
@@ -28,10 +45,10 @@ def get_url():
 
 
 def openvpn(username, password):
-    with tempfile.NamedTemporaryFile(mode='w+', buffering=1) as passfile:
-        passfile.write(f'{username}\n')
-        passfile.write(f'{password}\n')
-        cmd = f'sudo openvpn --config {args.profile.name} --auth-user-pass {passfile.name}'
+    with tempfile.NamedTemporaryFile(mode="w+", buffering=1) as passfile:
+        passfile.write(f"{username}\n")
+        passfile.write(f"{password}\n")
+        cmd = f"sudo openvpn --config {args.profile.name} --auth-user-pass {passfile.name}"
         argv = shlex.split(cmd)
         argv.extend(args.ovpnargs)
         proc = subprocess.Popen(argv)
@@ -40,25 +57,36 @@ def openvpn(username, password):
         proc.communicate()
 
 
+credentials = {}
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         return
 
     def do_POST(self):
         self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
-        self.wfile.write(b'SuccessAviatrix')
+        self.wfile.write(b"SuccessAviatrix")
         global credentials
         credentials = json.loads(unquote(self.path[1:]))
 
 
-TCPServer.allow_reuse_address = True
-with TCPServer(('localhost', 15395), Handler) as httpd:
-    webbrowser.open(get_url())
-    httpd.handle_request()
+if X_is_running():
+    TCPServer.allow_reuse_address = True
+    with TCPServer(("localhost", 15395), Handler) as httpd:
+        print("opening browser")
+        webbrowser.open(get_url())
+        httpd.handle_request()
+else:
+    print("X is not running")
+    print("open below url in browser and copy Email and Token")
+    print(get_url())
+    credentials["Email"] = input("Enter Email: ")
+    credentials["Token"] = input("Enter Token: ")
 
 if args.dump:
     print(json.dumps(credentials))
 else:
-    openvpn(credentials['Email'], credentials['Token'])
+    openvpn(credentials["Email"], credentials["Token"])
