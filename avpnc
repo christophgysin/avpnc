@@ -45,13 +45,18 @@ class Handler(BaseHTTPRequestHandler):
         return
 
     def do_POST(self):
+        self.extract_response_and_login()
+
+    def do_OPTIONS(self):
+        self.extract_response_and_login()
+
+    def extract_response_and_login(self):
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
         self.wfile.write(b'SuccessAviatrix')
-        global credentials
-        credentials = json.loads(unquote(self.path[1:]))
-
+        global credentials = json.loads(unquote(self.path[1:]))
+        openvpn(credentials['Email'], credentials['Token'])
 
 TCPServer.allow_reuse_address = True
 with TCPServer(('localhost', 15395), Handler) as httpd:
