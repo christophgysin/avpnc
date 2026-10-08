@@ -17,6 +17,7 @@ parser.add_argument('profile', type=argparse.FileType('r'), metavar='profile.ovp
 parser.add_argument('ovpnargs', metavar='[extra openvpn arguments...]', nargs=argparse.REMAINDER)
 args = parser.parse_args()
 
+credentials = None
 
 def get_url():
     regex = re.compile('^#AviatrixController (.*)$')
@@ -25,7 +26,6 @@ def get_url():
         if match:
             return match.group(1)
     raise RuntimeError("Controller URL not found in profile")
-
 
 def openvpn(username, password):
     with tempfile.NamedTemporaryFile(mode='w+', buffering=1) as passfile:
@@ -44,21 +44,33 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         return
 
-    def do_POST(self):
+    def send_cors_headers(self):
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
-        self.end_headers()
-        self.wfile.write(b'SuccessAviatrix')
-        global credentials
-        credentials = json.loads(unquote(self.path[1:]))
 
     def do_OPTIONS(self):
-        return self.do_POST()
+        self.send_cors_headers()
+        self.end_headers()
+
+    def do_POST(self):
+        global credentials
+        self.send_cors_headers()
+        self.end_headers()
+        self.wfile.write(b'SuccessAviatrix')
+
+        try:
+            path_data = unquote(self.path.lstrip('/'))
+            if path_data:
+                credentials = json.loads(path_data)
+        except Exception as e:
+            print(f"Error parsing credentials: {e}")
+
 
 TCPServer.allow_reuse_address = True
 with TCPServer(('localhost', 15395), Handler) as httpd:
     webbrowser.open(get_url())
-    httpd.handle_request()
+    while credentials is None:
+        httpd.handle_request()
 
 if args.dump:
     print(json.dumps(credentials))
